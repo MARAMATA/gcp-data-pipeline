@@ -1,0 +1,11 @@
+[
+    {"name": "transaction_id", "type": "INT64", "mode": "NULLABLE", "description": "Identifiant unique"},
+    {"name": "product_name", "type": "STRING", "mode": "REQUIRED", "description": "Nom du produit"},
+    {"name": "category", "type": "STRING", "mode": "REQUIRED", "description": "Catégorie du produit"},
+    {"name": "price", "type": "FLOAT64", "mode": "REQUIRED", "description": "Prix unitaire"},
+    {"name": "quantity", "type": "INT64", "mode": "REQUIRED", "description": "Quantité achetée"},
+    {"name": "date", "type": "DATE", "mode": "REQUIRED", "description": "Date de la transaction"},
+    {"name": "customer_name", "type": "STRING", "mode": "NULLABLE", "description": "Nom du client"},
+    {"name": "customer_email", "type": "STRING", "mode": "NULLABLE", "description": "E-mail du client"}
+  ]
+  
