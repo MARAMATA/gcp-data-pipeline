@@ -51,7 +51,6 @@ Ce projet met en œuvre un pipeline automatisé pour :
 
 ## Auteur
 - **Maramata Diop**
-# Nouveau README
 
 
 
