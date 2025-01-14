@@ -6,14 +6,14 @@ import logging
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 
-# Initialisation des clients GCS
-storage_client = storage.Client()
+# Initialiser le client GCS
+client = storage.Client()
 bucket_name = "m2dsia-maramata-diop-data"
-bucket = storage_client.bucket(bucket_name)
+bucket = client.bucket(bucket_name)
 
 def list_files_in_folder(folder):
     """Liste les fichiers dans un dossier GCS."""
-    return [blob.name for blob in storage_client.list_blobs(bucket_name, prefix=folder) if not blob.name.endswith("/")]
+    return [blob.name for blob in client.list_blobs(bucket_name, prefix=folder) if not blob.name.endswith("/")]
 
 def download_file(gcs_path, local_path):
     """Télécharge un fichier de GCS vers le local."""
@@ -31,24 +31,42 @@ def validate_and_clean_data(local_file):
     """Valide et nettoie les données."""
     try:
         df = pd.read_csv(local_file)
+        
+        # Validation des colonnes requises
         required_columns = [
             "transaction_id", "product_name", "category", "price", "quantity", "date",
             "customer_name", "customer_email"
         ]
         if not all(col in df.columns for col in required_columns):
-            raise ValueError("Colonnes manquantes")
+            raise ValueError("Colonnes manquantes dans le fichier d'entrée.")
 
-        df["product_name"] = df["product_name"].fillna("Unknown Product")
-        df["price"] = pd.to_numeric(df["price"], errors="coerce")
-        df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
-        df = df.dropna()
+        # Nettoyage des données
+        valid_data = df.copy()
+        invalid_data = pd.DataFrame()
+
+        # Identifiez les lignes invalides (ex : prix ou quantité non valides)
+        valid_data["price"] = pd.to_numeric(valid_data["price"], errors="coerce")
+        valid_data["quantity"] = pd.to_numeric(valid_data["quantity"], errors="coerce")
+        valid_data = valid_data.dropna(subset=["price", "quantity"])  # Garder les lignes valides
+
+        # Lignes rejetées
+        invalid_data = df[~df.index.isin(valid_data.index)]
+        
+        # Générer des noms de fichiers spécifiques
         cleaned_file = local_file.replace(".csv", "_cleaned.csv")
-        df.to_csv(cleaned_file, index=False)
+        error_file = local_file.replace(".csv", "_errors.csv")
+        
+        # Enregistrer les fichiers nettoyés et rejetés
+        valid_data.to_csv(cleaned_file, index=False)
+        invalid_data.to_csv(error_file, index=False)
+        
         logging.info(f"Fichier nettoyé : {cleaned_file}")
-        return cleaned_file, None
+        logging.info(f"Fichier d'erreurs : {error_file}")
+        
+        return cleaned_file, error_file
     except Exception as e:
         logging.error(f"Erreur de validation/cleaning : {e}")
-        return None, str(e)
+        return None, None
 
 def process_files():
     """Traite les fichiers du dossier input/."""
@@ -57,15 +75,19 @@ def process_files():
         local_input_path = os.path.basename(file_path)
         download_file(file_path, local_input_path)
 
-        cleaned_file, error = validate_and_clean_data(local_input_path)
+        cleaned_file, error_file = validate_and_clean_data(local_input_path)
+        
         if cleaned_file:
             upload_file(cleaned_file, f"clean/{os.path.basename(cleaned_file)}")
-        else:
-            upload_file(local_input_path, f"error/{os.path.basename(local_input_path)}")
+        if error_file:
+            upload_file(error_file, f"error/{os.path.basename(error_file)}")
 
+        # Suppression des fichiers locaux
         os.remove(local_input_path)
-        if cleaned_file:
+        if cleaned_file and os.path.exists(cleaned_file):
             os.remove(cleaned_file)
+        if error_file and os.path.exists(error_file):
+            os.remove(error_file)
 
 if __name__ == "__main__":
     process_files()
