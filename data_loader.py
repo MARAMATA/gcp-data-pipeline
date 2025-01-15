@@ -63,6 +63,3 @@ def process_clean_files():
 
 if __name__ == "__main__":
     process_clean_files()
-
-
-

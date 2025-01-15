@@ -31,7 +31,7 @@ def validate_and_clean_data(local_file):
     """Valide et nettoie les données."""
     try:
         df = pd.read_csv(local_file)
-        
+
         # Validation des colonnes requises
         required_columns = [
             "transaction_id", "product_name", "category", "price", "quantity", "date",
@@ -40,29 +40,29 @@ def validate_and_clean_data(local_file):
         if not all(col in df.columns for col in required_columns):
             raise ValueError("Colonnes manquantes dans le fichier d'entrée.")
 
-        # Nettoyage des données
-        valid_data = df.copy()
-        invalid_data = pd.DataFrame()
+        # Remplir les valeurs manquantes dans les colonnes obligatoires
+        df["product_name"] = df["product_name"].fillna("Produit inconnu")
+        df["category"] = df["category"].fillna("Catégorie inconnue")
 
-        # Identifiez les lignes invalides (ex : prix ou quantité non valides)
-        valid_data["price"] = pd.to_numeric(valid_data["price"], errors="coerce")
-        valid_data["quantity"] = pd.to_numeric(valid_data["quantity"], errors="coerce")
-        valid_data = valid_data.dropna(subset=["price", "quantity"])  # Garder les lignes valides
 
-        # Lignes rejetées
+        # Conversion des types de données
+        df["price"] = pd.to_numeric(df["price"], errors="coerce")
+        df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0).astype(int)
+        df["transaction_id"] = pd.to_numeric(df["transaction_id"], errors="coerce").fillna(0).astype(int)
+
+        # Filtrer les lignes avec des dates invalides
+        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
+        valid_data = df.dropna(subset=["price", "quantity", "date"])
         invalid_data = df[~df.index.isin(valid_data.index)]
-        
-        # Générer des noms de fichiers spécifiques
+
+        # Enregistrer les fichiers nettoyés et rejetés
         cleaned_file = local_file.replace(".csv", "_cleaned.csv")
         error_file = local_file.replace(".csv", "_errors.csv")
-        
-        # Enregistrer les fichiers nettoyés et rejetés
         valid_data.to_csv(cleaned_file, index=False)
         invalid_data.to_csv(error_file, index=False)
-        
+
         logging.info(f"Fichier nettoyé : {cleaned_file}")
         logging.info(f"Fichier d'erreurs : {error_file}")
-        
         return cleaned_file, error_file
     except Exception as e:
         logging.error(f"Erreur de validation/cleaning : {e}")
